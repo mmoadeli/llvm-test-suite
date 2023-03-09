@@ -1108,8 +1108,7 @@ int main() {
         auto local_acc = sycl::local_accessor<int, 1>({size}, cgh);
         cgh.single_task<class kernel>([=]() { (void)local_acc; });
       });
-      assert(0 &&
-             "local accessor must not be used in parallel for with range.");
+      assert(0 && "local accessor must not be used in single task.");
     } catch (sycl::exception e) {
       std::cout << "SYCL exception caught: " << e.what() << std::endl;
     }
