@@ -894,7 +894,8 @@ int main() {
       sycl::host_accessor out{b, sycl::read_only, sycl::no_init};
       assert(false && "operation should have failed");
     } catch (sycl::exception &e) {
-      assert(e.code() == sycl::errc::invalid && "errc should be errc::invalid");
+      assert(e.code() == sycl::errc::invalid && "errc should be
+      errc::invalid");
     }
     try {
       sycl::queue q;
@@ -904,7 +905,8 @@ int main() {
       q.wait_and_throw();
       assert(false && "we should not be here. operation should have failed");
     } catch (sycl::exception &e) {
-      assert(e.code() == sycl::errc::invalid && "errc should be errc::invalid");
+      assert(e.code() == sycl::errc::invalid && "errc should be
+      errc::invalid");
     }
   }
 
@@ -1094,6 +1096,42 @@ int main() {
     }
 
     assert(Data == 64);
+  }
+
+  // Throws exception on local_accessors used in single_task
+  {
+    constexpr static int size = 1;
+    sycl::queue Queue;
+
+    try {
+      Queue.submit([&](sycl::handler &cgh) {
+        auto local_acc = sycl::local_accessor<int, 1>({size}, cgh);
+        cgh.single_task<class kernel>([=]() { (void)local_acc; });
+      });
+      assert(0 &&
+             "local accessor must not be used in parallel for with range.");
+    } catch (sycl::exception e) {
+      std::cout << "SYCL exception caught: " << e.what() << std::endl;
+    }
+  }
+
+  // Throws exception on local_accessors used in parallel_for taking a range
+  // parameter.
+  {
+    constexpr static int size = 1;
+    sycl::queue Queue;
+
+    try {
+      Queue.submit([&](sycl::handler &cgh) {
+        auto local_acc = sycl::local_accessor<int, 1>({size}, cgh);
+        cgh.parallel_for<class parallel_kernel>(
+            sycl::range<1>{size}, [=](sycl::id<1> ID) { (void)local_acc; });
+      });
+      assert(0 &&
+             "local accessor must not be used in parallel for with range.");
+    } catch (sycl::exception e) {
+      std::cout << "SYCL exception caught: " << e.what() << std::endl;
+    }
   }
 
   std::cout << "Test passed" << std::endl;
