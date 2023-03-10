@@ -104,11 +104,10 @@ template <typename T> void TestAccSizeFuncs(const std::vector<T> &vec) {
 
   {
     sycl::buffer<size_t> bufRes(res.data(), res.size());
-    sycl::range<1> range(1);
     q.submit([&](sycl::handler &cgh) {
       sycl::accessor accRes(bufRes, cgh);
       sycl::local_accessor<T, 1> locAcc(vec.size(), cgh);
-      cgh.parallel_for(sycl::nd_range<1>{range, range},
+      cgh.parallel_for(sycl::nd_range<1>{1, 1},
                        [=](sycl::nd_item<1>) { test(accRes, locAcc); });
     });
     q.wait();
@@ -122,8 +121,7 @@ template <typename GlobAcc, typename LocAcc>
 void testLocalAccItersImpl(sycl::handler &cgh, GlobAcc &globAcc, LocAcc &locAcc,
                            bool testConstIter) {
   if (testConstIter) {
-    sycl::range<1> range(1);
-    cgh.parallel_for(sycl::nd_range<1>{range, range}, [=](sycl::nd_item<1>) {
+    cgh.parallel_for(sycl::nd_range<1>{1, 1}, [=](sycl::nd_item<1>) {
       size_t Idx = 0;
       for (auto &It : locAcc) {
         It = globAcc[Idx++];
@@ -136,8 +134,7 @@ void testLocalAccItersImpl(sycl::handler &cgh, GlobAcc &globAcc, LocAcc &locAcc,
         globAcc[Idx--] += *It;
     });
   } else {
-    sycl::range<1> range(1);
-    cgh.parallel_for(sycl::nd_range<1>{range, range}, [=](sycl::nd_item<1>) {
+    cgh.parallel_for(sycl::nd_range<1>{1, 1}, [=](sycl::nd_item<1>) {
       size_t Idx = 0;
       for (auto It = locAcc.begin(); It != locAcc.end(); It++)
         *It = globAcc[Idx++] * 2;
@@ -898,8 +895,7 @@ int main() {
       sycl::host_accessor out{b, sycl::read_only, sycl::no_init};
       assert(false && "operation should have failed");
     } catch (sycl::exception &e) {
-      assert(e.code() == sycl::errc::invalid && "errc should be
-      errc::invalid");
+      assert(e.code() == sycl::errc::invalid && "errc should be errc::invalid");
     }
     try {
       sycl::queue q;
@@ -909,8 +905,7 @@ int main() {
       q.wait_and_throw();
       assert(false && "we should not be here. operation should have failed");
     } catch (sycl::exception &e) {
-      assert(e.code() == sycl::errc::invalid && "errc should be
-      errc::invalid");
+      assert(e.code() == sycl::errc::invalid && "errc should be errc::invalid");
     }
   }
 
@@ -1014,13 +1009,12 @@ int main() {
       sycl::buffer<size_t> buf2(&size2, 1);
 
       sycl::queue q;
-      sycl::range<1> range(1);
       q.submit([&](sycl::handler &cgh) {
         sycl::accessor acc1(buf1, cgh);
         sycl::accessor acc2(buf2, cgh);
         sycl::local_accessor<int, 1> locAcc1(8, cgh), locAcc2(16, cgh);
         locAcc1.swap(locAcc2);
-        cgh.parallel_for<class swap2>(sycl::nd_range<1>{range, range},
+        cgh.parallel_for<class swap2>(sycl::nd_range<1>{1, 1},
                                       [=](sycl::nd_item<1>) {
                                         acc1[0] = locAcc1.size();
                                         acc2[0] = locAcc2.size();
@@ -1091,11 +1085,10 @@ int main() {
     // Explicit block to prompt copy-back to Data
     {
       sycl::buffer<int, 1> DataBuffer(&Data, sycl::range<1>(1));
-      sycl::range<1> range(1);
       Queue.submit([&](sycl::handler &CGH) {
         sycl::accessor<int, 0> Acc(DataBuffer, CGH);
         sycl::local_accessor<int, 0> LocalAcc(CGH);
-        CGH.parallel_for<class copyblock>(sycl::nd_range<1>{range, range},
+        CGH.parallel_for<class copyblock>(sycl::nd_range<1>{1, 1},
                                           [=](sycl::nd_item<1>) {
                                             LocalAcc = 64;
                                             Acc = LocalAcc;
@@ -1114,7 +1107,7 @@ int main() {
     try {
       Queue.submit([&](sycl::handler &cgh) {
         auto local_acc = sycl::local_accessor<int, 1>({size}, cgh);
-        cgh.single_task<class kernel>([=]() { (void)local_acc; });
+        cgh.single_task<class local_acc_exception>([=]() { (void)local_acc; });
       });
       assert(0 && "local accessor must not be used in single task.");
     } catch (sycl::exception e) {
@@ -1131,7 +1124,7 @@ int main() {
     try {
       Queue.submit([&](sycl::handler &cgh) {
         auto local_acc = sycl::local_accessor<int, 1>({size}, cgh);
-        cgh.parallel_for<class parallel_kernel>(
+        cgh.parallel_for<class parallel_for_exception>(
             sycl::range<1>{size}, [=](sycl::id<1> ID) { (void)local_acc; });
       });
       assert(0 &&
