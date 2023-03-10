@@ -62,8 +62,7 @@ template <typename T> void testMultPtr() {
           accessorData_2(bufferData_2, cgh);
       local_accessor<T, 1> localAccessor(numOfItems, cgh);
 
-      cgh.parallel_for<class testMultPtrKernel<T>>(range<1>{10}, [=](id<1>
-                                                                         wiID) {
+      cgh.parallel_for<class testMultPtrKernel<T>>(nd_range<1>{10, 10}, [=](nd_item<1> wiID) {
         auto ptr_1 =
             make_ptr<T, access::address_space::global_space,
                      access::decorated::legacy>(accessorData_1.get_pointer());
@@ -104,7 +103,7 @@ template <typename T> void testMultPtr() {
         // LLVM IR device_ptr<T> ptr_11(accessorData_1); global_ptr<T>
         // ptr_12 = global_ptr<T>(ptr_11);
 
-        innerFunc<T>(wiID.get(0), ptr_1, ptr_2, local_ptr);
+        innerFunc<T>(wiID.get_local_id().get(0), ptr_1, ptr_2, local_ptr);
       });
     });
   }
@@ -141,7 +140,8 @@ template <typename T> void testMultPtrArrowOperator() {
                access::placeholder::false_t>
           accessorData_4(bufferData_4, cgh);
 
-      cgh.single_task<class testMultPtrArrowOperatorKernel<T>>([=]() {
+      cgh.parallel_for<class testMultPtrArrowOperatorKernel<T>>(
+            sycl::nd_range<1>{1, 1}, [=](sycl::nd_item<1>) {
         auto ptr_1 =
             make_ptr<point<T>, access::address_space::global_space,
                      access::decorated::legacy>(accessorData_1.get_pointer());
